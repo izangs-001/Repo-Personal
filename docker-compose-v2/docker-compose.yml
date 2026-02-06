@@ -1,0 +1,71 @@
+services:
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb-v2
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: Admin123!
+      MYSQL_DATABASE: mi_empresa
+      MYSQL_USER: usuario_web
+      MYSQL_PASSWORD: ClaveSegura456
+      MYSQL_INITDB_SKIP_TLS: 1
+    ports:
+      - "3308:3306"  # Cambiado de 3307 a 3308
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - red-app
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pAdmin123!"]
+      timeout: 20s
+      retries: 10
+
+  apache:
+    image: php:8.2-apache
+    container_name: apache-v2
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - "8081:80"  # Cambiado de 80 a 8081
+    volumes:
+      - ./html:/var/www/html
+      - ./config/apache.conf:/etc/apache2/conf-enabled/custom.conf
+    networks:
+      - red-app
+    environment:
+      - DB_HOST=mariadb
+      - DB_NAME=mi_empresa
+      - DB_USER=usuario_web
+      - DB_PASS=ClaveSegura456
+    command: >
+      sh -c "
+      docker-php-ext-install mysqli pdo pdo_mysql &&
+      docker-php-ext-enable mysqli &&
+      echo 'ServerName localhost' >> /etc/apache2/apache2.conf &&
+      apache2-foreground
+      "
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-v2
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+    ports:
+      - "8082:80"  # Cambiado de 8080 a 8082
+    environment:
+      PMA_HOST: mariadb
+      PMA_USER: usuario_web
+      PMA_PASSWORD: ClaveSegura456
+    networks:
+      - red-app
+
+networks:
+  red-app:
+    driver: bridge
+
+volumes:
+  mariadb_data:
