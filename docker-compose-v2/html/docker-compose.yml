@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb-final
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: Admin123!
+      MYSQL_DATABASE: mi_empresa
+      MYSQL_USER: usuario_web
+      MYSQL_PASSWORD: ClaveSegura456
+    ports:
+      - "3309:3306"
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - red-final
+
+  apache:
+    image: php:8.2-apache
+    container_name: apache-final
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+    ports:
+      - "8090:80"
+    volumes:
+      - ./html:/var/www/html
+    networks:
+      - red-final
+    # ESTO ES LO IMPORTANTE: Instalar extensiones al iniciar
+    command: >
+      bash -c "
+      docker-php-ext-install pdo pdo_mysql mysqli &&
+      docker-php-ext-enable pdo_mysql mysqli &&
+      apache2-foreground
+      "
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-final
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+    ports:
+      - "8091:80"
+    environment:
+      PMA_HOST: mariadb
+      PMA_USER: usuario_web
+      PMA_PASSWORD: ClaveSegura456
+    networks:
+      - red-final
+
+networks:
+  red-final:
+    driver: bridge
